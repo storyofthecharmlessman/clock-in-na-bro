@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Zone Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #dbeafe;
+            --hud-bg: rgba(255, 255, 255, 0.7);
+            --clock-bg: #ffffff;
+            --accent: #ffafcc;
+            --border: #bde0fe;
+        }
+
+        body { 
+            margin: 0;
+            height: 100vh;
+            background-color: var(--bg-color);
+            font-family: 'Quicksand', sans-serif;
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        /* HUD Styling */
+        #hud { 
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--hud-bg);
+            backdrop-filter: blur(15px);
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: 3px solid var(--accent);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        /* Settings Panel */
+        #gear-icon {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            cursor: pointer;
+            font-size: 30px;
+            z-index: 1000;
+        }
+
+        #settings-pane {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 280px;
+            height: 100%;
+            background: white;
+            padding: 25px;
+            transition: right 0.4s ease;
+            border-radius: 30px 0 0 30px;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        /* Clock Card Styling */
+        .clock-card {
+            position: absolute;
+            background: var(--clock-bg);
+            padding: 25px;
+            border-radius: 30px;
+            border: 4px solid var(--border);
+            text-align: center;
+            cursor: grab;
+            min-width: 180px;
+            user-select: none;
+        }
+
+        /* Input and Button Styling */
+        input, select, button {
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 2px solid var(--border);
+            outline: none;
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gear-icon">⚙️</div>
+
+    <div id="settings-pane">
+        <h3>🎨 Customize</h3>
+        <label>Background Color:</label><br>
+        <input type="color" id="bg-picker"><br><br>
+        
+        <label>Accent Color:</label><br>
+        <input type="color" id="accent-picker">
+        
+        <br><br>
+        <button id="close-settings">Save & Close</button>
+    </div>
+
+    <div id="hud">
+        <input list="tz-list" id="tz-search" placeholder="Search City/Zone...">
+        <datalist id="tz-list"></datalist>
+        
+        <select id="fmt-picker">
+            <option value="12">12HR</option>
+            <option value="24">24HR</option>
+        </select>
+        <button id="add-clock-btn">Add</button>
+    </div>
+
+    <script>
+        const tzList = document.getElementById('tz-list');
+        const tzSearch = document.getElementById('tz-search');
+        const fmtPicker = document.getElementById('fmt-picker');
+        const addClockBtn = document.getElementById('add-clock-btn');
+        const gearIcon = document.getElementById('gear-icon');
+        const settingsPane = document.getElementById('settings-pane');
+        const closeSettings = document.getElementById('close-settings');
+
+        // Populate Timezones
+        const allZones = Intl.supportedValuesOf('timeZone');
+        allZones.forEach(tz => {
+            const option = document.createElement('option');
+            option.value = tz;
+            tzList.appendChild(option);
+        });
+
+        // UI Handlers
+        gearIcon.addEventListener('click', () => settingsPane.style.right = '0');
+        closeSettings.addEventListener('click', () => settingsPane.style.right = '-300px');
+
+        document.getElementById('bg-picker').addEventListener('input', (e) => {
+            document.body.style.backgroundColor = e.target.value;
+        });
+
+        document.getElementById('accent-picker').addEventListener('input', (e) => {
+            const color = e.target.value;
+            document.documentElement.style.setProperty('--accent', color);
+            document.documentElement.style.setProperty('--border', color);
+        });
+
+        function addClock() {
+            const zone = tzSearch.value;
+            if (!allZones.includes(zone)) return alert("Please select a valid timezone!");
+            
+            const is12Hr = fmtPicker.value === '12';
+            const clockDiv = document.createElement('div');
+            clockDiv.className = 'clock-card';
+            clockDiv.style.left = '50px';
+            clockDiv.style.top = '120px';
+            
+            clockDiv.innerHTML = `
+                <div style="font-size: 14px; color: #888;">${zone.split('/').pop()}</div>
+                <h2 style="margin: 5px 0; color: #555;" class="time">--:--:--</h2>
+                <button class="remove-btn">Remove</button>
+            `;
+            
+            // Drag Logic
+            clockDiv.onmousedown = (e) => {
+                let shiftX = e.clientX - clockDiv.getBoundingClientRect().left;
+                let shiftY = e.clientY - clockDiv.getBoundingClientRect().top;
+
+                const moveAt = (pageX, pageY) => {
+                    clockDiv.style.left = pageX - shiftX + 'px';
+                    clockDiv.style.top = pageY - shiftY + 'px';
+                };
+
+                const onMouseMove = (e) => moveAt(e.pageX, e.pageY);
+                document.addEventListener('mousemove', onMouseMove);
+                
+                document.onmouseup = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.onmouseup = null;
+                };
+            };
+
+            clockDiv.querySelector('.remove-btn').onclick = () => clockDiv.remove();
+            document.body.appendChild(clockDiv);
+            
+            // Time Updater
+            const updateTime = () => {
+                clockDiv.querySelector('.time').innerText = new Date().toLocaleTimeString("en-US", {
+                    timeZone: zone, 
+                    hour12: is12Hr, 
+                    hour: '2-digit', 
+                    minute:'2-digit', 
+                    second:'2-digit'
+                });
+            };
+            
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        addClockBtn.addEventListener('click', addClock);
+    </script>
+</body>
+</html>
