@@ -45,15 +45,8 @@
                 lastTap = now;
             });
 
-            // Drag logic
-            const dragStart = (e) => {
-                // If it's mobile and locked, do not allow move
-                if (e.type === 'touchstart' && isLocked) return;
-
-                // Handle coordinates for both mouse and touch
-                const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-
+// Drag Logic for Mouse AND Touch
+            const startDrag = (clientX, clientY) => {
                 let shiftX = clientX - clockDiv.getBoundingClientRect().left;
                 let shiftY = clientY - clockDiv.getBoundingClientRect().top;
 
@@ -63,28 +56,26 @@
                 };
 
                 const onMove = (e) => {
-                    const pX = e.type === 'touchmove' ? e.touches[0].pageX : e.pageX;
-                    const pY = e.type === 'touchmove' ? e.touches[0].pageY : e.pageY;
-                    moveAt(pX, pY);
+                    const x = e.pageX || e.touches[0].pageX;
+                    const y = e.pageY || e.touches[0].pageY;
+                    moveAt(x, y);
+                };
+
+                const onEnd = () => {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('mouseup', onEnd);
+                    document.removeEventListener('touchend', onEnd);
                 };
 
                 document.addEventListener('mousemove', onMove);
-                document.addEventListener('touchmove', onMove, { passive: false });
-
-                const stopDrag = () => {
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('touchmove', onMove);
-                };
-
-                document.onmouseup = stopDrag;
-                document.ontouchend = stopDrag;
+                document.addEventListener('touchmove', onMove, {passive: false});
+                document.addEventListener('mouseup', onEnd);
+                document.addEventListener('touchend', onEnd);
             };
 
-            // Listeners
-            clockDiv.addEventListener('mousedown', dragStart);
-            clockDiv.addEventListener('touchstart', dragStart, { passive: false });
-
-            // ... (rest of your existing code for updateTime/appendChild) ...
+            clockDiv.onmousedown = (e) => startDrag(e.clientX, e.clientY);
+            clockDiv.ontouchstart = (e) => startDrag(e.touches[0].clientX, e.touches[0].clientY);
         }
     </script>
 </body>
